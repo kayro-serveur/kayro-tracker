@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kayro — Tracker Brawlers</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f1a; --surface:#161827; --card:#1e2133; --border:#2a2d45;
+    --gold:#f5c842; --green:#2ecc71; --blue:#4a9eff; --purple:#a855f7;
+    --orange:#ff7b2e; --red:#ff4757; --text:#f0f0f8; --muted:#7b80a0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh;padding-bottom:60px;overflow-x:hidden;}
+  header{background:linear-gradient(135deg,#1a1c30 0%,#0d0f1a 100%);border-bottom:2px solid var(--gold);padding:20px 16px 16px;position:sticky;top:0;z-index:100;}
+  .header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--gold);text-shadow:0 0 20px rgba(245,200,66,0.3);}
+  .trophy-count{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);display:flex;align-items:center;gap:6px;cursor:pointer;}
+  .trophy-count:hover{opacity:0.8;}
+  .live-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.7)}}
+  .progress-wrap{background:var(--border);border-radius:10px;height:8px;overflow:hidden;margin-bottom:6px;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));border-radius:10px;transition:width 0.4s ease;}
+  .progress-label{font-size:12px;color:var(--muted);text-align:right;}
+  .search-bar{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:15px;color:var(--text);font-family:'Nunito',sans-serif;margin-top:10px;outline:none;}
+  .search-bar:focus{border-color:var(--gold);}
+  .search-bar::placeholder{color:var(--muted);}
+  .controls-row{display:flex;align-items:center;gap:8px;padding:12px 16px 0;overflow-x:auto;scrollbar-width:none;}
+  .controls-row::-webkit-scrollbar{display:none;}
+  .tab{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;font-family:'Nunito',sans-serif;}
+  .tab.active{color:var(--bg);border-color:transparent;}
+  .tab[data-tier="all"].active{background:var(--text);}
+  .tab[data-tier="low"].active{background:var(--green);}
+  .tab[data-tier="mid"].active{background:var(--blue);}
+  .tab[data-tier="high"].active{background:var(--orange);}
+  .tab[data-tier="prestige"].active{background:var(--purple);}
+  .sort-divider{flex-shrink:0;width:1px;height:20px;background:var(--border);margin:0 2px;}
+  .sort-btn{flex-shrink:0;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s;font-family:'Nunito',sans-serif;white-space:nowrap;}
+  .sort-btn.active{background:rgba(245,200,66,0.15);border-color:var(--gold);color:var(--gold);}
+  .section{padding:8px 16px 4px;display:none;}
+  .section.visible{display:block;}
+  .section-label{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1.5px;margin:16px 0 8px;display:flex;align-items:center;gap:8px;}
+  .section-label span{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .brawler-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;transition:border-color 0.2s,opacity 0.3s;position:relative;}
+  .brawler-card.done{opacity:0.4;border-color:var(--green);}
+  @keyframes completeBurst{
+    0%{transform:scale(1);box-shadow:0 0 0px rgba(46,204,113,0);}
+    30%{transform:scale(1.04);box-shadow:0 0 28px rgba(46,204,113,0.7);}
+    60%{transform:scale(0.98);}
+    100%{transform:scale(1);box-shadow:0 0 0px rgba(46,204,113,0);}
+  }
+  .brawler-card.completing{animation:completeBurst 0.55s ease forwards;border-color:var(--green)!important;opacity:1!important;}
+  .confetti-wrap{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;}
+  .confetti-piece{position:absolute;width:8px;height:8px;border-radius:2px;animation:confettiFall 1.2s ease-out forwards;}
+  @keyframes confettiFall{0%{transform:translateY(0) rotate(0deg) scale(1);opacity:1}100%{transform:translateY(280px) rotate(720deg) scale(0.3);opacity:0}}
+
+  /* Avatar SVG généré */
+  .brawler-avatar{width:44px;height:44px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;position:relative;overflow:hidden;}
+
+  .brawler-info{flex:1;min-width:0;}
+  .brawler-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .brawler-trophies{font-size:11px;color:var(--gold);font-weight:700;display:flex;align-items:center;gap:3px;margin-top:1px;}
+  .brawler-trophies.no-data{color:var(--muted);}
+  .dots{display:flex;gap:5px;flex-shrink:0;}
+  .dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:var(--surface);cursor:pointer;transition:all 0.15s;-webkit-tap-highlight-color:transparent;}
+  .dot:active{transform:scale(0.85);}
+  .dot.filled-low{background:var(--green);border-color:#27ae60;}
+  .dot.filled-mid{background:var(--blue);border-color:#2980b9;}
+  .dot.filled-high{background:var(--orange);border-color:#e55a00;}
+  .dot.filled-prestige{background:var(--purple);border-color:#7c3aed;}
+  .badge{font-size:10px;font-weight:800;padding:3px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0;}
+  .badge-low{background:rgba(46,204,113,0.15);color:var(--green);border:1px solid rgba(46,204,113,0.3);}
+  .badge-mid{background:rgba(74,158,255,0.15);color:var(--blue);border:1px solid rgba(74,158,255,0.3);}
+  .badge-high{background:rgba(255,123,46,0.15);color:var(--orange);border:1px solid rgba(255,123,46,0.3);}
+  .badge-prestige{background:rgba(168,85,247,0.15);color:var(--purple);border:1px solid rgba(168,85,247,0.3);}
+  .reset-btn{display:block;margin:20px 16px 0;width:calc(100% - 32px);padding:12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;font-family:'Nunito',sans-serif;font-weight:700;cursor:pointer;transition:border-color 0.2s,color 0.2s;}
+  .reset-btn:hover{border-color:var(--red);color:var(--red);}
+  .empty{text-align:center;color:var(--muted);padding:40px 0;font-size:14px;}
+  .api-banner{margin:8px 16px 0;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .api-banner.loading{background:rgba(74,158,255,0.1);color:var(--blue);border:1px solid rgba(74,158,255,0.2);}
+  .api-banner.success{background:rgba(46,204,113,0.1);color:var(--green);border:1px solid rgba(46,204,113,0.2);}
+  .api-banner.error{background:rgba(255,71,87,0.1);color:var(--red);border:1px solid rgba(255,71,87,0.2);}
+  .api-banner.hidden{display:none;}
+  .spin{display:inline-block;animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Cloud save UI */
+  .cloud-bar{margin:10px 16px 0;display:flex;gap:8px;align-items:center;}
+  .cloud-btn{flex:1;padding:9px 10px;border-radius:10px;border:1px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .cloud-btn.save{background:rgba(74,158,255,0.12);color:var(--blue);border-color:rgba(74,158,255,0.3);}
+  .cloud-btn.save:hover{background:rgba(74,158,255,0.25);border-color:var(--blue);}
+  .cloud-btn.load{background:rgba(46,204,113,0.12);color:var(--green);border-color:rgba(46,204,113,0.3);}
+  .cloud-btn.load:hover{background:rgba(46,204,113,0.25);border-color:var(--green);}
+  .cloud-btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
+  .modal-overlay.hidden{display:none;}
+  .modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:360px;}
+  .modal h2{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);letter-spacing:1.5px;margin-bottom:8px;}
+  .modal p{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5;}
+  .modal-code{background:var(--surface);border:2px dashed var(--gold);border-radius:10px;padding:14px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:6px;color:var(--gold);margin-bottom:12px;cursor:pointer;user-select:all;}
+  .modal-code:hover{background:rgba(245,200,66,0.08);}
+  .modal input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:18px;text-align:center;color:var(--text);font-family:'Bebas Neue',sans-serif;letter-spacing:4px;outline:none;margin-bottom:12px;}
+  .modal input:focus{border-color:var(--gold);}
+  .modal input::placeholder{font-family:'Nunito',sans-serif;font-size:13px;letter-spacing:0;color:var(--muted);}
+  .modal-actions{display:flex;gap:8px;}
+  .modal-btn{flex:1;padding:10px;border-radius:10px;border:none;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;transition:all 0.2s;}
+  .modal-btn.confirm{background:var(--gold);color:#0d0f1a;}
+  .modal-btn.confirm:hover{background:#f0b800;}
+  .modal-btn.cancel{background:var(--surface);color:var(--muted);border:1px solid var(--border);}
+  .modal-btn.cancel:hover{border-color:var(--red);color:var(--red);}
+  .modal-status{font-size:12px;text-align:center;margin-top:8px;min-height:16px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <h1>🏆 Kayro Tracker</h1>
+    <div class="trophy-count" onclick="fetchPlayerData()" title="Cliquer pour rafraîchir">
+      <div class="live-dot"></div>
+      🏆 <span id="trophy-display">...</span>
+    </div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+  <div class="progress-label" id="progress-label">0 / 0 brawlers terminés</div>
+  <input class="search-bar" type="text" id="search" placeholder="🔍 Chercher un brawler..." oninput="render()" />
+</header>
+
+<div id="api-banner" class="api-banner loading">
+  <span class="spin">⟳</span> Chargement des stats en direct...
+</div>
+
+<div class="cloud-bar">
+  <button class="cloud-btn save" onclick="openSaveModal()">☁️ Sauvegarder en ligne</button>
+  <button class="cloud-btn load" onclick="openLoadModal()">📂 Charger ma progression</button>
+</div>
+
+<!-- Modal sauvegarde -->
+<div class="modal-overlay hidden" id="modal-save">
+  <div class="modal">
+    <h2>☁️ Sauvegarde</h2>
+    <p>Clique sur "Sauvegarder" pour générer ton code. Garde-le précieusement — il te permettra de retrouver ta progression depuis n'importe quel appareil.</p>
+    <div id="save-code-display" style="display:none">
+      <div class="modal-code" id="save-code" onclick="copyCode()" title="Cliquer pour copier">——————</div>
+      <p style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:12px;">👆 Clique pour copier</p>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal('modal-save')">Fermer</button>
+      <button class="modal-btn confirm" id="save-confirm-btn" onclick="doSaveOnline()">Sauvegarder</button>
+    </div>
+    <div class="modal-status" id="save-status"></div>
+  </div>
+</div>
+
+<!-- Modal chargement -->
+<div class="modal-overlay hidden" id="modal-load">
+  <div class="modal">
+    <h2>📂 Charger</h2>
+    <p>Entre ton code de sauvegarde pour retrouver ta progression.</p>
+    <input type="text" id="load-code-input" placeholder="Ex: AB12CD34" maxlength="8" oninput="this.value=this.value.toUpperCase()" />
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal('modal-load')">Annuler</button>
+      <button class="modal-btn confirm" onclick="doLoadOnline()">Charger</button>
+    </div>
+    <div class="modal-status" id="load-status"></div>
+  </div>
+</div>
+
+<div class="controls-row">
+  <div class="tab active" data-tier="all"      onclick="setTab('all')">Tous</div>
+  <div class="tab"        data-tier="low"      onclick="setTab('low')">Priorité 1</div>
+  <div class="tab"        data-tier="mid"      onclick="setTab('mid')">Priorité 2</div>
+  <div class="tab"        data-tier="high"     onclick="setTab('high')">Priorité 3</div>
+  <div class="tab"        data-tier="prestige" onclick="setTab('prestige')">Prestige 1</div>
+  <div class="sort-divider"></div>
+  <div class="sort-btn active" id="sort-tier" onclick="setSort('tier')">🎯 Tier</div>
+  <div class="sort-btn"        id="sort-name" onclick="setSort('name')">🔤 Nom</div>
+  <div class="sort-btn"        id="sort-prog" onclick="setSort('progress')">📊 Progression</div>
+</div>
+
+<div id="list"></div>
+<button class="reset-btn" onclick="resetAll()">🔄 Tout réinitialiser</button>
+
+<script>
+const PLAYER_TAG = 'JLPQ8YYC';
+
+// couleur1 = fond avatar, couleur2 = accent, emoji = icône
+const BRAWLERS_DEF = [
+  // PRIORITÉ 1
+  {nameEN:"BROCK",    nameFR:"Brock",      tier:"low",      c1:"#1a1a2e", c2:"#ff6b35", emoji:"🚀"},
+  {nameEN:"NANI",     nameFR:"Nani",       tier:"low",      c1:"#1a0a2e", c2:"#c084fc", emoji:"🎀"},
+  {nameEN:"RICO",     nameFR:"Rico",       tier:"low",      c1:"#0a1a2e", c2:"#60a5fa", emoji:"🤖"},
+  {nameEN:"BELLE",    nameFR:"Belle",      tier:"low",      c1:"#1a1a0a", c2:"#fbbf24", emoji:"⭐"},
+  {nameEN:"BEA",      nameFR:"Bea",        tier:"low",      c1:"#1a1500", c2:"#f59e0b", emoji:"🐝"},
+  {nameEN:"BYRON",    nameFR:"Byron",      tier:"low",      c1:"#0a001a", c2:"#8b5cf6", emoji:"🧪"},
+  {nameEN:"EMZ",      nameFR:"Emz",        tier:"low",      c1:"#1a0015", c2:"#ec4899", emoji:"💜"},
+  {nameEN:"TICK",     nameFR:"Tick",       tier:"low",      c1:"#1a0a00", c2:"#f97316", emoji:"💣"},
+  {nameEN:"SPROUT",   nameFR:"Sprout",     tier:"low",      c1:"#001a00", c2:"#4ade80", emoji:"🌱"},
+  {nameEN:"SQUEAK",   nameFR:"Squeak",     tier:"low",      c1:"#1a1000", c2:"#fb923c", emoji:"🐭"},
+  {nameEN:"GALE",     nameFR:"Gale",       tier:"low",      c1:"#001015", c2:"#67e8f9", emoji:"💨"},
+  {nameEN:"GENE",     nameFR:"Génie",      tier:"low",      c1:"#00001a", c2:"#818cf8", emoji:"🧞"},
+  {nameEN:"MAX",      nameFR:"Max",        tier:"low",      c1:"#1a001a", c2:"#f472b6", emoji:"⚡"},
+  {nameEN:"MR. P",    nameFR:"M. P",       tier:"low",      c1:"#001a1a", c2:"#2dd4bf", emoji:"🐧"},
+  {nameEN:"BARLEY",   nameFR:"Barley",     tier:"low",      c1:"#0a1500", c2:"#84cc16", emoji:"🍺"},
+  {nameEN:"PENNY",    nameFR:"Penny",      tier:"low",      c1:"#1a0800", c2:"#fb923c", emoji:"🏴‍☠️"},
+  {nameEN:"RUFFS",    nameFR:"Ruffs",      tier:"low",      c1:"#001515", c2:"#22d3ee", emoji:"✈️"},
+  // PRIORITÉ 2
+  {nameEN:"EL PRIMO", nameFR:"El Primo",   tier:"mid",      c1:"#1a0000", c2:"#f87171", emoji:"🥊"},
+  {nameEN:"ROSA",     nameFR:"Rosa",       tier:"mid",      c1:"#001200", c2:"#6ee7b7", emoji:"🌹"},
+  {nameEN:"ASH",      nameFR:"Ash",        tier:"mid",      c1:"#0a0a0a", c2:"#94a3b8", emoji:"🗑️"},
+  {nameEN:"BUZZ",     nameFR:"Buzz",       tier:"mid",      c1:"#000f1a", c2:"#38bdf8", emoji:"🦈"},
+  {nameEN:"DARRYL",   nameFR:"Darryl",     tier:"mid",      c1:"#0a0500", c2:"#d97706", emoji:"🤠"},
+  {nameEN:"SAM",      nameFR:"Sam",        tier:"mid",      c1:"#1a0505", c2:"#ef4444", emoji:"👊"},
+  {nameEN:"JACKY",    nameFR:"Jacky",      tier:"mid",      c1:"#080f00", c2:"#a3e635", emoji:"⛏️"},
+  {nameEN:"NITA",     nameFR:"Nita",       tier:"mid",      c1:"#0f0005", c2:"#f9a8d4", emoji:"🐻"},
+  {nameEN:"COLETTE",  nameFR:"Colette",    tier:"mid",      c1:"#0f000f", c2:"#e879f9", emoji:"🔫"},
+  {nameEN:"BO",       nameFR:"Bo",         tier:"mid",      c1:"#0a0800", c2:"#fcd34d", emoji:"🏹"},
+  {nameEN:"SURGE",    nameFR:"Surge",      tier:"mid",      c1:"#00100a", c2:"#34d399", emoji:"🏄"},
+  // PRIORITÉ 3
+  {nameEN:"SHELLY",   nameFR:"Shelly",     tier:"high",     c1:"#1a0800", c2:"#fbbf24", emoji:"💥"},
+  {nameEN:"JESSIE",   nameFR:"Jessie",     tier:"high",     c1:"#0a0a1a", c2:"#a78bfa", emoji:"⚙️"},
+  {nameEN:"PAM",      nameFR:"Pam",        tier:"high",     c1:"#001a0a", c2:"#4ade80", emoji:"🔧"},
+  {nameEN:"8-BIT",    nameFR:"8-Bit",      tier:"high",     c1:"#00001a", c2:"#6366f1", emoji:"👾"},
+  {nameEN:"SANDY",    nameFR:"Sandy",      tier:"high",     c1:"#1a1000", c2:"#fbbf24", emoji:"😴"},
+  {nameEN:"AMBER",    nameFR:"Ambre",      tier:"high",     c1:"#1a0500", c2:"#f97316", emoji:"🔥"},
+  {nameEN:"LOU",      nameFR:"Lou",        tier:"high",     c1:"#001515", c2:"#a5f3fc", emoji:"🧊"},
+  {nameEN:"LOLA",     nameFR:"Lola",       tier:"high",     c1:"#15001a", c2:"#c084fc", emoji:"🌟"},
+  {nameEN:"FANG",     nameFR:"Fang",       tier:"high",     c1:"#1a0000", c2:"#fb923c", emoji:"🦶"},
+  {nameEN:"LEON",     nameFR:"Léon",       tier:"high",     c1:"#001a10", c2:"#4ade80", emoji:"🦎"},
+  {nameEN:"SPIKE",    nameFR:"Spike",      tier:"high",     c1:"#001a00", c2:"#86efac", emoji:"🌵"},
+  {nameEN:"CROW",     nameFR:"Corbak",     tier:"high",     c1:"#05001a", c2:"#818cf8", emoji:"🐦"},
+  // PRESTIGE 1
+  {nameEN:"COLT",     nameFR:"Colt",       tier:"prestige", c1:"#1a1500", c2:"#fcd34d", emoji:"🔫"},
+  {nameEN:"PIPER",    nameFR:"Piper",      tier:"prestige", c1:"#0f0015", c2:"#d946ef", emoji:"☂️"},
+  {nameEN:"DYNAMIKE", nameFR:"Dynamike",   tier:"prestige", c1:"#1a0800", c2:"#fb923c", emoji:"💣"},
+  {nameEN:"BULL",     nameFR:"Bull",       tier:"prestige", c1:"#1a0000", c2:"#f87171", emoji:"🐂"},
+  {nameEN:"BIBI",     nameFR:"Bibi",       tier:"prestige", c1:"#00101a", c2:"#38bdf8", emoji:"⚾"},
+  {nameEN:"FRANK",    nameFR:"Frank",      tier:"prestige", c1:"#080808", c2:"#94a3b8", emoji:"🔨"},
+  {nameEN:"STU",      nameFR:"Stu",        tier:"prestige", c1:"#1a0a00", c2:"#fb923c", emoji:"🏎️"},
+];
+
+const SECTIONS = [
+  {key:'low',      label:'Priorité 1 — commence ici',    color:'#2ecc71'},
+  {key:'mid',      label:'Priorité 2 — trophées moyens', color:'#4a9eff'},
+  {key:'high',     label:'Priorité 3 — hauts trophées',  color:'#ff7b2e'},
+  {key:'prestige', label:'Prestige 1 — joue en dernier', color:'#a855f7'},
+];
+
+let brawlerTrophiesMap = {};
+let activeTab = 'all';
+let activeSort = 'tier';
+
+function load() {
+  try {
+    const saved = localStorage.getItem('kayro-v4');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return BRAWLERS_DEF.map(b => ({...b, matches:0}));
+}
+let state = load();
+
+function save() {
+  try { localStorage.setItem('kayro-v4', JSON.stringify(state)); } catch(e) {}
+}
+
+function resetAll() {
+  if (!confirm('Remettre tous les brawlers à zéro ?')) return;
+  state = BRAWLERS_DEF.map(b => ({...b, matches:0}));
+  save(); render();
+}
+
+function setTab(t) {
+  activeTab = t;
+  document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.dataset.tier === t));
+  render();
+}
+
+function setSort(s) {
+  activeSort = s;
+  document.querySelectorAll('.sort-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('sort-' + s).classList.add('active');
+  render();
+}
+
+function toggleDot(idx, d) {
+  const wasDone = state[idx].matches >= 5;
+  state[idx].matches = (state[idx].matches === d + 1) ? d : d + 1;
+  const nowDone = state[idx].matches >= 5;
+  save();
+  render();
+  if (nowDone && !wasDone) {
+    const name = state[idx].nameFR;
+    document.querySelectorAll('.brawler-card').forEach(card => {
+      if (card.querySelector('.brawler-name')?.textContent.includes(name)) {
+        card.classList.add('completing');
+        spawnConfetti(card);
+        setTimeout(() => card.classList.remove('completing'), 600);
+      }
+    });
+  }
+}
+
+function spawnConfetti(card) {
+  const rect = card.getBoundingClientRect();
+  const colors = ['#f5c842','#2ecc71','#4a9eff','#a855f7','#ff7b2e','#ff4757'];
+  const wrap = document.createElement('div');
+  wrap.className = 'confetti-wrap';
+  document.body.appendChild(wrap);
+  for (let i = 0; i < 22; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.left = (rect.left + Math.random() * rect.width) + 'px';
+    p.style.top = (rect.top + Math.random() * rect.height * 0.5) + 'px';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDelay = (Math.random() * 0.25) + 's';
+    p.style.animationDuration = (0.9 + Math.random() * 0.5) + 's';
+    wrap.appendChild(p);
+  }
+  setTimeout(() => wrap.remove(), 1600);
+}
+
+function setBanner(type, msg) {
+  const el = document.getElementById('api-banner');
+  el.className = 'api-banner ' + type;
+  el.innerHTML = msg;
+}
+
+async function fetchPlayerData() {
+  setBanner('loading', '<span class="spin">⟳</span> Chargement des stats en direct...');
+  document.getElementById('trophy-display').textContent = '...';
+
+  // Essaie les deux proxies
+  const url = 'https://brawlapi.com/api/players/%23' + PLAYER_TAG;
+  const proxies = [
+    'https://api.allorigins.win/get?url=' + encodeURIComponent(url),
+    'https://corsproxy.io/?' + url,
+  ];
+
+  let data = null;
+  for (const proxyUrl of proxies) {
+    try {
+      const res = await fetch(proxyUrl, {signal: AbortSignal.timeout(8000)});
+      if (!res.ok) continue;
+      const raw = await res.json();
+      // allorigins renvoie {contents: "..."}, corsproxy renvoie directement l'objet
+      if (raw.contents) {
+        data = JSON.parse(raw.contents);
+      } else if (raw.trophies !== undefined) {
+        data = raw;
+      }
+      if (data) break;
+    } catch(e) { continue; }
+  }
+
+  if (!data) {
+    setBanner('error', '❌ Impossible de charger les stats. <a href="https://brawlify.com/stats/player/JLPQ8YYC" target="_blank" style="color:inherit;text-decoration:underline">Voir sur Brawlify</a>');
+    document.getElementById('trophy-display').textContent = '—';
+    return;
+  }
+
+  document.getElementById('trophy-display').textContent = data.trophies.toLocaleString('fr-FR');
+  brawlerTrophiesMap = {};
+  (data.brawlers || []).forEach(b => {
+    brawlerTrophiesMap[b.name.toUpperCase()] = b.trophies;
+  });
+  setBanner('success', '✅ <strong>' + data.name + '</strong> — ' + data.trophies.toLocaleString('fr-FR') + ' trophées 🏆');
+  setTimeout(() => setBanner('hidden', ''), 3000);
+  render();
+}
+
+function avatarHTML(b) {
+  return '<div class="brawler-avatar" style="background:' + b.c1 + ';border:2px solid ' + b.c2 + '40;">'
+    + '<span style="font-size:22px;filter:drop-shadow(0 0 4px ' + b.c2 + ')">' + b.emoji + '</span>'
+    + '</div>';
+}
+
+function badgeHTML(tier) {
+  const labels = {low:'P1', mid:'P2', high:'P3', prestige:'Prestige'};
+  return '<span class="badge badge-' + tier + '">' + labels[tier] + '</span>';
+}
+
+function cardHTML(b) {
+  const i = state.indexOf(b);
+  const isDone = b.matches >= 5;
+  const bTrophies = brawlerTrophiesMap[b.nameEN];
+  let dots = '';
+  for (let d = 0; d < 5; d++) {
+    const filled = d < b.matches ? ' filled-' + b.tier : '';
+    dots += '<div class="dot' + filled + '" onclick="toggleDot(' + i + ',' + d + ')"></div>';
+  }
+  const trophyLine = bTrophies !== undefined
+    ? '<div class="brawler-trophies">🏆 ' + bTrophies.toLocaleString('fr-FR') + '</div>'
+    : '<div class="brawler-trophies no-data">— trophées</div>';
+
+  return '<div class="brawler-card' + (isDone ? ' done' : '') + '">'
+    + avatarHTML(b)
+    + '<div class="brawler-info">'
+    + '<div class="brawler-name">' + (isDone ? '✅ ' : '') + b.nameFR + '</div>'
+    + trophyLine
+    + '</div>'
+    + badgeHTML(b.tier)
+    + '<div class="dots">' + dots + '</div>'
+    + '</div>';
+}
+
+function render() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const done = state.filter(b => b.matches >= 5).length;
+  const pct = Math.round((done / state.length) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = done + ' / ' + state.length + ' brawlers terminés (' + pct + '%)';
+
+  let html = '';
+
+  if (activeSort === 'name' || activeSort === 'progress') {
+    // Vue plate triée
+    let items = state.filter(b =>
+      (activeTab === 'all' || b.tier === activeTab) &&
+      b.nameFR.toLowerCase().includes(q)
+    );
+    if (activeSort === 'name') {
+      items = [...items].sort((a, b) => a.nameFR.localeCompare(b.nameFR, 'fr'));
+    } else {
+      items = [...items].sort((a, b) => b.matches - a.matches || a.nameFR.localeCompare(b.nameFR));
+    }
+    if (items.length) {
+      html = '<div class="section visible">' + items.map(b => cardHTML(b)).join('') + '</div>';
+    } else {
+      html = '<div class="empty">Aucun brawler trouvé 👀</div>';
+    }
+  } else {
+    // Vue groupée par tier
+    const sectionsToShow = activeTab === 'all' ? SECTIONS : SECTIONS.filter(s => s.key === activeTab);
+    sectionsToShow.forEach(sec => {
+      const items = state.filter(b => b.tier === sec.key && b.nameFR.toLowerCase().includes(q));
+      if (!items.length) return;
+      html += '<div class="section visible">'
+        + '<div class="section-label"><span style="background:' + sec.color + '"></span>' + sec.label + '</div>'
+        + items.map(b => cardHTML(b)).join('')
+        + '</div>';
+    });
+    if (!html) html = '<div class="empty">Aucun brawler trouvé 👀</div>';
+  }
+
+  document.getElementById('list').innerHTML = html;
+}
+
+render();
+fetchPlayerData();
+
+// ─── SAUVEGARDE EN LIGNE (JSONBin.io) ───────────────────────────────────────
+// 👉 Crée un compte gratuit sur https://jsonbin.io et colle ta clé API ici :
+const JSONBIN_API_KEY = '$2a$10$REMPLACE_PAR_TA_VRAIE_CLE_API';
+const JSONBIN_URL = 'https://api.jsonbin.io/v3/b';
+
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length: 8}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+function openSaveModal() {
+  document.getElementById('save-code-display').style.display = 'none';
+  document.getElementById('save-confirm-btn').style.display = '';
+  document.getElementById('save-status').textContent = '';
+  document.getElementById('modal-save').classList.remove('hidden');
+}
+
+function openLoadModal() {
+  document.getElementById('load-code-input').value = '';
+  document.getElementById('load-status').textContent = '';
+  document.getElementById('modal-load').classList.remove('hidden');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+// Fermer en cliquant sur l'overlay
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.add('hidden'); });
+});
+
+function copyCode() {
+  const code = document.getElementById('save-code').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    document.getElementById('save-status').textContent = '✅ Code copié !';
+  });
+}
+
+async function doSaveOnline() {
+  const btn = document.getElementById('save-confirm-btn');
+  const status = document.getElementById('save-status');
+
+  if (JSONBIN_API_KEY.includes('REMPLACE')) {
+    status.style.color = 'var(--red)';
+    status.textContent = '⚠️ Configure ta clé API JSONBin dans le code (JSONBIN_API_KEY)';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⟳ Sauvegarde…';
+  status.style.color = 'var(--muted)';
+  status.textContent = '';
+
+  const code = genCode();
+  const payload = {
+    code,
+    savedAt: new Date().toISOString(),
+    progress: state.map(b => ({nameEN: b.nameEN, matches: b.matches}))
+  };
+
+  try {
+    const res = await fetch(JSONBIN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_API_KEY,
+        'X-Bin-Name': 'kayro-' + code,
+        'X-Bin-Private': 'false'
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Erreur API');
+
+    // Stocker le binId localement pour les futures mises à jour
+    const binId = data.metadata?.id;
+    localStorage.setItem('kayro-cloud-binId', binId);
+    localStorage.setItem('kayro-cloud-code', code);
+
+    document.getElementById('save-code').textContent = code;
+    document.getElementById('save-code-display').style.display = 'block';
+    btn.style.display = 'none';
+    status.style.color = 'var(--green)';
+    status.textContent = '✅ Progression sauvegardée !';
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = 'Sauvegarder';
+    status.style.color = 'var(--red)';
+    status.textContent = '❌ Erreur : ' + e.message;
+  }
+}
+
+async function doLoadOnline() {
+  const code = document.getElementById('load-code-input').value.trim().toUpperCase();
+  const status = document.getElementById('load-status');
+
+  if (code.length !== 8) {
+    status.style.color = 'var(--red)';
+    status.textContent = '⚠️ Le code doit faire 8 caractères';
+    return;
+  }
+
+  if (JSONBIN_API_KEY.includes('REMPLACE')) {
+    status.style.color = 'var(--red)';
+    status.textContent = '⚠️ Configure ta clé API JSONBin dans le code (JSONBIN_API_KEY)';
+    return;
+  }
+
+  status.style.color = 'var(--muted)';
+  status.textContent = '⟳ Recherche en cours…';
+
+  try {
+    // Chercher le bin par nom
+    const searchRes = await fetch(`https://api.jsonbin.io/v3/b?name=kayro-${code}`, {
+      headers: { 'X-Master-Key': JSONBIN_API_KEY }
+    });
+    const bins = await searchRes.json();
+    if (!bins.length) throw new Error('Code introuvable');
+
+    const binId = bins[0].id;
+    const res = await fetch(`${JSONBIN_URL}/${binId}/latest`, {
+      headers: { 'X-Master-Key': JSONBIN_API_KEY }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error('Impossible de lire la sauvegarde');
+
+    const saved = data.record;
+    // Fusionner avec les brawlers actuels
+    const progressMap = {};
+    (saved.progress || []).forEach(b => { progressMap[b.nameEN] = b.matches; });
+    state = BRAWLERS_DEF.map(b => ({...b, matches: progressMap[b.nameEN] ?? 0}));
+    save();
+    render();
+
+    localStorage.setItem('kayro-cloud-binId', binId);
+    localStorage.setItem('kayro-cloud-code', code);
+
+    status.style.color = 'var(--green)';
+    status.textContent = '✅ Progression chargée !';
+    setTimeout(() => closeModal('modal-load'), 1200);
+  } catch(e) {
+    status.style.color = 'var(--red)';
+    status.textContent = '❌ ' + e.message;
+  }
+}
+</script>
+</body>
+</html>
