@@ -112,6 +112,39 @@
   .modal-btn.cancel{background:var(--surface);color:var(--muted);border:1px solid var(--border);}
   .modal-btn.cancel:hover{border-color:var(--red);color:var(--red);}
   .modal-status{font-size:12px;text-align:center;margin-top:8px;min-height:16px;}
+
+  /* Stats page */
+  .stats-overlay{position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;padding-bottom:60px;transform:translateY(100%);transition:transform 0.35s cubic-bezier(.4,0,.2,1);}
+  .stats-overlay.open{transform:translateY(0);}
+  .stats-header{background:linear-gradient(135deg,#1a1c30,#0d0f1a);border-bottom:2px solid var(--gold);padding:20px 16px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10;}
+  .stats-back{background:none;border:none;color:var(--gold);font-size:22px;cursor:pointer;padding:0;}
+  .stats-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--gold);}
+  .stats-body{padding:16px;}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;}
+  .stat-card-title{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--muted);margin-bottom:12px;}
+  .big-numbers{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .big-num{background:var(--surface);border-radius:12px;padding:14px;text-align:center;}
+  .big-num .val{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--gold);line-height:1;}
+  .big-num .lbl{font-size:11px;color:var(--muted);margin-top:4px;font-weight:700;}
+  .tier-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .tier-row-label{font-size:12px;font-weight:800;width:70px;flex-shrink:0;}
+  .tier-bar-wrap{flex:1;background:var(--surface);border-radius:20px;height:10px;overflow:hidden;}
+  .tier-bar-fill{height:100%;border-radius:20px;transition:width 0.6s ease;}
+  .tier-row-count{font-size:12px;font-weight:800;color:var(--muted);width:40px;text-align:right;flex-shrink:0;}
+  .brawler-top{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+  .brawler-top:last-child{border-bottom:none;}
+  .brawler-top-rank{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--muted);width:24px;text-align:center;}
+  .brawler-top-info{flex:1;}
+  .brawler-top-name{font-size:13px;font-weight:800;}
+  .brawler-top-trophy{font-size:11px;color:var(--gold);font-weight:700;}
+  .dots-mini{display:flex;gap:3px;}
+  .dot-mini{width:10px;height:10px;border-radius:50%;background:var(--surface);border:1px solid var(--border);}
+  .dot-mini.on-low{background:var(--green);}
+  .dot-mini.on-mid{background:var(--blue);}
+  .dot-mini.on-high{background:var(--orange);}
+  .dot-mini.on-prestige{background:var(--purple);}
+  .stats-nav-btn{position:fixed;bottom:20px;right:16px;background:var(--gold);color:#0d0f1a;border:none;border-radius:50px;padding:12px 20px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;cursor:pointer;z-index:300;box-shadow:0 4px 20px rgba(245,200,66,0.4);transition:transform 0.2s;}
+  .stats-nav-btn:hover{transform:scale(1.05);}
 </style>
 </head>
 <body>
@@ -185,6 +218,18 @@
 
 <div id="list"></div>
 <button class="reset-btn" onclick="resetAll()">🔄 Tout réinitialiser</button>
+
+<!-- Bouton flottant stats -->
+<button class="stats-nav-btn" onclick="openStats()">📊 Ma Progression</button>
+
+<!-- Page stats -->
+<div class="stats-overlay" id="stats-overlay">
+  <div class="stats-header">
+    <button class="stats-back" onclick="closeStats()">←</button>
+    <div class="stats-title">📊 Ma Progression</div>
+  </div>
+  <div class="stats-body" id="stats-body"></div>
+</div>
 
 <script>
 const PLAYER_TAG = 'JLPQ8YYC';
@@ -292,6 +337,7 @@ function toggleDot(idx, d) {
   state[idx].matches = (state[idx].matches === d + 1) ? d : d + 1;
   const nowDone = state[idx].matches >= 5;
   save();
+  autoSaveOnline();
   render();
   if (nowDone && !wasDone) {
     const name = state[idx].nameFR;
@@ -334,11 +380,12 @@ async function fetchPlayerData() {
   setBanner('loading', '<span class="spin">⟳</span> Chargement des stats en direct...');
   document.getElementById('trophy-display').textContent = '...';
 
-  // Essaie les deux proxies
-  const url = 'https://brawlapi.com/api/players/%23' + PLAYER_TAG;
+  const tag = PLAYER_TAG.replace('#', '');
   const proxies = [
-    'https://api.allorigins.win/get?url=' + encodeURIComponent(url),
-    'https://corsproxy.io/?' + url,
+    'https://corsproxy.io/?https://api.brawlapi.com/v1/players/%23' + tag,
+    'https://api.allorigins.win/get?url=' + encodeURIComponent('https://api.brawlapi.com/v1/players/%23' + tag),
+    'https://corsproxy.io/?https://brawlapi.com/api/players/%23' + tag,
+    'https://api.allorigins.win/get?url=' + encodeURIComponent('https://brawlapi.com/api/players/%23' + tag),
   ];
 
   let data = null;
@@ -347,18 +394,20 @@ async function fetchPlayerData() {
       const res = await fetch(proxyUrl, {signal: AbortSignal.timeout(8000)});
       if (!res.ok) continue;
       const raw = await res.json();
-      // allorigins renvoie {contents: "..."}, corsproxy renvoie directement l'objet
       if (raw.contents) {
-        data = JSON.parse(raw.contents);
+        try { data = JSON.parse(raw.contents); } catch(e) { continue; }
       } else if (raw.trophies !== undefined) {
         data = raw;
+      } else if (raw.data?.trophies !== undefined) {
+        data = raw.data;
       }
-      if (data) break;
+      if (data?.trophies !== undefined) break;
+      data = null;
     } catch(e) { continue; }
   }
 
   if (!data) {
-    setBanner('error', '❌ Impossible de charger les stats. <a href="https://brawlify.com/stats/player/JLPQ8YYC" target="_blank" style="color:inherit;text-decoration:underline">Voir sur Brawlify</a>');
+    setBanner('error', '❌ Stats indisponibles. <a href="https://brawlify.com/stats/player/' + tag + '" target="_blank" style="color:inherit;text-decoration:underline">Voir sur Brawlify</a>');
     document.getElementById('trophy-display').textContent = '—';
     return;
   }
@@ -453,9 +502,142 @@ function render() {
 render();
 fetchPlayerData();
 
+// ─── PAGE PROGRESSION ────────────────────────────────────────────────────────
+function openStats() {
+  renderStats();
+  document.getElementById('stats-overlay').classList.add('open');
+}
+function closeStats() {
+  document.getElementById('stats-overlay').classList.remove('open');
+}
+
+function renderStats() {
+  const total = state.length;
+  const done = state.filter(b => b.matches >= 5).length;
+  const pct = Math.round((done / total) * 100);
+  const totalDots = state.reduce((s, b) => s + b.matches, 0);
+  const maxDots = total * 5;
+
+  const tiers = [
+    {key:'low',      label:'Priorité 1', color:'var(--green)'},
+    {key:'mid',      label:'Priorité 2', color:'var(--blue)'},
+    {key:'high',     label:'Priorité 3', color:'var(--orange)'},
+    {key:'prestige', label:'Prestige',   color:'var(--purple)'},
+  ];
+
+  // Top brawlers par trophées
+  const withTrophies = state
+    .filter(b => brawlerTrophiesMap[b.nameEN] !== undefined)
+    .sort((a,b) => (brawlerTrophiesMap[b.nameEN]||0) - (brawlerTrophiesMap[a.nameEN]||0))
+    .slice(0, 5);
+
+  let html = '';
+
+  // Chiffres clés
+  html += `<div class="stat-card">
+    <div class="stat-card-title">🎯 VUE GLOBALE</div>
+    <div class="big-numbers">
+      <div class="big-num"><div class="val">${pct}%</div><div class="lbl">Complété</div></div>
+      <div class="big-num"><div class="val">${done}/${total}</div><div class="lbl">Brawlers finis</div></div>
+      <div class="big-num"><div class="val">${totalDots}</div><div class="lbl">Matches joués</div></div>
+      <div class="big-num"><div class="val">${maxDots - totalDots}</div><div class="lbl">Matches restants</div></div>
+    </div>
+  </div>`;
+
+  // Barres par tier
+  html += `<div class="stat-card"><div class="stat-card-title">📈 PAR PRIORITÉ</div>`;
+  tiers.forEach(t => {
+    const tierState = state.filter(b => b.tier === t.key);
+    const tierDone = tierState.filter(b => b.matches >= 5).length;
+    const tierPct = tierState.length ? Math.round((tierDone / tierState.length) * 100) : 0;
+    html += `<div class="tier-row">
+      <div class="tier-row-label" style="color:${t.color}">${t.label}</div>
+      <div class="tier-bar-wrap"><div class="tier-bar-fill" style="width:${tierPct}%;background:${t.color}"></div></div>
+      <div class="tier-row-count">${tierDone}/${tierState.length}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Top trophées
+  if (withTrophies.length) {
+    html += `<div class="stat-card"><div class="stat-card-title">🏆 TOP TROPHÉES</div>`;
+    withTrophies.forEach((b, i) => {
+      const dots = Array.from({length:5}, (_,d) =>
+        `<div class="dot-mini ${d < b.matches ? 'on-'+b.tier : ''}"></div>`
+      ).join('');
+      html += `<div class="brawler-top">
+        <div class="brawler-top-rank">${i+1}</div>
+        <div style="font-size:20px">${b.emoji}</div>
+        <div class="brawler-top-info">
+          <div class="brawler-top-name">${b.nameFR}</div>
+          <div class="brawler-top-trophy">🏆 ${brawlerTrophiesMap[b.nameEN].toLocaleString('fr-FR')}</div>
+        </div>
+        <div class="dots-mini">${dots}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Brawlers pas encore commencés
+  const notStarted = state.filter(b => b.matches === 0).length;
+  const inProgress = state.filter(b => b.matches > 0 && b.matches < 5).length;
+  html += `<div class="stat-card"><div class="stat-card-title">📋 STATUT</div>
+    <div class="big-numbers">
+      <div class="big-num"><div class="val" style="color:var(--muted)">${notStarted}</div><div class="lbl">Pas commencés</div></div>
+      <div class="big-num"><div class="val" style="color:var(--blue)">${inProgress}</div><div class="lbl">En cours</div></div>
+      <div class="big-num"><div class="val" style="color:var(--green)">${done}</div><div class="lbl">Terminés ✅</div></div>
+      <div class="big-num"><div class="val" style="color:var(--gold)">${pct}%</div><div class="lbl">Global</div></div>
+    </div>
+  </div>`;
+
+  document.getElementById('stats-body').innerHTML = html;
+}
+
+// ─── AUTO-SAVE ───────────────────────────────────────────────────────────────
+let autoSaveTimer = null;
+function showAutoSaveIndicator(msg, color) {
+  let el = document.getElementById('autosave-indicator');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'autosave-indicator';
+    el.style.cssText = 'position:fixed;bottom:16px;right:16px;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:800;font-family:Nunito,sans-serif;z-index:500;transition:opacity 0.4s;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.background = color === 'green' ? 'rgba(46,204,113,0.15)' : 'rgba(74,158,255,0.15)';
+  el.style.color = color === 'green' ? '#2ecc71' : '#4a9eff';
+  el.style.border = '1px solid ' + (color === 'green' ? 'rgba(46,204,113,0.3)' : 'rgba(74,158,255,0.3)');
+  el.style.opacity = '1';
+  clearTimeout(el._hide);
+  el._hide = setTimeout(() => { el.style.opacity = '0'; }, 2000);
+}
+
+async function autoSaveOnline() {
+  const binId = localStorage.getItem('kayro-cloud-binId');
+  if (!binId) return; // Pas encore sauvegardé une première fois
+
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(async () => {
+    showAutoSaveIndicator('☁️ Sauvegarde...', 'blue');
+    const payload = {
+      code: localStorage.getItem('kayro-cloud-code'),
+      savedAt: new Date().toISOString(),
+      progress: state.map(b => ({nameEN: b.nameEN, matches: b.matches}))
+    };
+    try {
+      await fetch(`${JSONBIN_URL}/${binId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
+        body: JSON.stringify(payload)
+      });
+      showAutoSaveIndicator('✅ Sauvegardé !', 'green');
+    } catch(e) {}
+  }, 1000); // attend 1 sec avant d'envoyer (évite trop de requêtes)
+}
+
 // ─── SAUVEGARDE EN LIGNE (JSONBin.io) ───────────────────────────────────────
 // 👉 Crée un compte gratuit sur https://jsonbin.io et colle ta clé API ici :
-const JSONBIN_API_KEY = '$2a$10$REMPLACE_PAR_TA_VRAIE_CLE_API';
+const JSONBIN_API_KEY = '$2a$10$qhMyjYYxdpLmzhgFuaCzquwYJVxwtlwDx46XDZDLufaZZ9kCbMA8K';
 const JSONBIN_URL = 'https://api.jsonbin.io/v3/b';
 
 function genCode() {
