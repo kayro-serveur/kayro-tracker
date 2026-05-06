@@ -643,42 +643,30 @@ async function fetchPlayerData() {
   document.getElementById('trophy-display').textContent = '...';
 
   const tag = PLAYER_TAG.replace('#', '');
-  const encodedTag = encodeURIComponent('#' + tag);
-  const brawlapiUrl = 'https://api.brawlapi.com/v1/players/%23' + tag;
-  const brawlstarsUrl = 'https://brawltime.ninja/api/player/' + tag;
 
-  const proxies = [
-    // corsproxy.io — plusieurs variantes
-    { url: 'https://corsproxy.io/?' + brawlapiUrl, parse: r => r },
-    { url: 'https://corsproxy.io/?url=' + encodeURIComponent(brawlapiUrl), parse: r => r },
-    // allorigins
-    { url: 'https://api.allorigins.win/get?url=' + encodeURIComponent(brawlapiUrl), parse: r => r.contents ? JSON.parse(r.contents) : null },
-    // thingproxy
-    { url: 'https://thingproxy.freeboard.io/fetch/' + brawlapiUrl, parse: r => r },
-    // jsonp.afeld.me
-    { url: 'https://jsonp.afeld.me/?url=' + encodeURIComponent(brawlapiUrl), parse: r => r },
-    // crossorigin.me
-    { url: 'https://crossorigin.me/' + brawlapiUrl, parse: r => r },
-    // cors-anywhere (heroku)
-    { url: 'https://cors-anywhere.herokuapp.com/' + brawlapiUrl, parse: r => r },
-    // allorigins raw
-    { url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(brawlapiUrl), parse: r => r },
-    // codetabs
-    { url: 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(brawlapiUrl), parse: r => r },
+  // Brawlify API supporte CORS nativement — pas besoin de proxy !
+  const urls = [
+    'https://api.brawlapi.com/v1/players/%23' + tag,
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.brawlapi.com/v1/players/%23' + tag),
+    'https://corsproxy.io/?' + encodeURIComponent('https://api.brawlapi.com/v1/players/%23' + tag),
+    'https://api.allorigins.win/get?url=' + encodeURIComponent('https://api.brawlapi.com/v1/players/%23' + tag),
   ];
 
   let data = null;
-  for (const proxy of proxies) {
+  for (const url of urls) {
     try {
-      const res = await fetch(proxy.url, {signal: AbortSignal.timeout(7000)});
+      const res = await fetch(url, {signal: AbortSignal.timeout(8000)});
       if (!res.ok) continue;
-      let raw = await res.json();
-      let parsed = proxy.parse(raw);
-      if (!parsed) continue;
-      // si c'est encore une string
-      if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed); } catch(e) { continue; } }
-      if (parsed?.trophies !== undefined) { data = parsed; break; }
-      if (parsed?.data?.trophies !== undefined) { data = parsed.data; break; }
+      const raw = await res.json();
+      if (raw.contents) {
+        try { data = JSON.parse(raw.contents); } catch(e) { continue; }
+      } else if (raw.trophies !== undefined) {
+        data = raw;
+      } else if (raw.data?.trophies !== undefined) {
+        data = raw.data;
+      }
+      if (data?.trophies !== undefined) break;
+      data = null;
     } catch(e) { continue; }
   }
 
