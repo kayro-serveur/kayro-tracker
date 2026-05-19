@@ -219,6 +219,49 @@
     100%{transform:scale(1);opacity:0;}
   }
   .goal-complete-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--gold);color:#0d0f1a;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;padding:20px 32px;border-radius:16px;z-index:9998;pointer-events:none;animation:goalBoom 2.5s ease forwards;white-space:nowrap;}
+
+  /* ── ACCOUNT SYSTEM ── */
+  .account-bar{margin:8px 16px 0;background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  .account-bar-header{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background 0.2s;}
+  .account-bar-header:hover{background:rgba(255,255,255,0.03);}
+  .account-active{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+  .account-avatar{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#1a1a2e,#2a2d45);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:1px solid var(--border);}
+  .account-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .account-tag{font-size:11px;color:var(--muted);font-weight:700;}
+  .account-trophies-pill{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--gold);background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.2);border-radius:8px;padding:3px 8px;flex-shrink:0;}
+  .account-chevron{color:var(--muted);font-size:12px;flex-shrink:0;transition:transform 0.2s;}
+  .account-chevron.open{transform:rotate(180deg);}
+  .account-dropdown{display:none;border-top:1px solid var(--border);}
+  .account-dropdown.open{display:block;}
+  .account-search-row{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);}
+  .account-input{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--text);font-family:'Nunito',sans-serif;outline:none;transition:border-color 0.2s;}
+  .account-input:focus{border-color:rgba(245,200,66,0.4);}
+  .account-input::placeholder{color:var(--muted);}
+  .account-search-btn{background:var(--gold);color:#0d0f1a;border:none;border-radius:10px;padding:8px 14px;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px;cursor:pointer;transition:all 0.2s;flex-shrink:0;}
+  .account-search-btn:hover{background:#f0b800;}
+  .account-search-btn:disabled{opacity:0.5;cursor:not-allowed;}
+  .account-section-label{font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:8px 14px 4px;}
+  .account-list{max-height:220px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+  .account-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background 0.15s;position:relative;}
+  .account-item:hover{background:rgba(255,255,255,0.04);}
+  .account-item-info{flex:1;min-width:0;}
+  .account-item-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .account-item-tag{font-size:11px;color:var(--muted);}
+  .account-item-trophy{font-size:11px;color:var(--gold);font-weight:800;}
+  .account-item-actions{display:flex;gap:6px;flex-shrink:0;align-items:center;}
+  .fav-btn{background:none;border:none;cursor:pointer;font-size:16px;opacity:0.4;transition:opacity 0.2s;padding:2px;}
+  .fav-btn:hover,.fav-btn.active{opacity:1;}
+  .del-btn{background:none;border:none;cursor:pointer;font-size:12px;color:var(--muted);opacity:0;transition:opacity 0.2s;padding:2px 4px;}
+  .account-item:hover .del-btn{opacity:0.6;}
+  .del-btn:hover{opacity:1!important;color:var(--red);}
+  .account-item.is-active{background:rgba(245,200,66,0.06);}
+  .account-item.is-active .account-item-name{color:var(--gold);}
+  .account-status{padding:4px 14px 8px;font-size:12px;font-weight:700;min-height:18px;}
+  .account-status.ok{color:var(--green);}
+  .account-status.err{color:var(--red);}
+  .account-status.loading{color:var(--blue);}
+  .account-no-data{text-align:center;color:var(--muted);padding:14px;font-size:12px;}
+
 </style>
 </head>
 <body>
@@ -264,6 +307,38 @@
 </div>
 
 <!-- Session banner -->
+
+<!-- ACCOUNT SYSTEM -->
+<div class="account-bar" id="account-bar">
+  <div class="account-bar-header" onclick="toggleAccountDropdown()">
+    <div class="account-avatar" id="ac-avatar">🎮</div>
+    <div class="account-active">
+      <div>
+        <div class="account-name" id="ac-name">Aucun compte</div>
+        <div class="account-tag" id="ac-tag">Recherche un tag BS pour commencer</div>
+      </div>
+    </div>
+    <div class="account-trophies-pill" id="ac-trophies" style="display:none">...</div>
+    <div class="account-chevron" id="ac-chevron">▼</div>
+  </div>
+  <div class="account-dropdown" id="ac-dropdown">
+    <div class="account-search-row">
+      <input class="account-input" id="ac-input" type="text" placeholder="#TAG (ex: #JLPQ8YYC)" 
+        onkeydown="if(event.key==='Enter')searchAccount()" />
+      <button class="account-search-btn" id="ac-search-btn" onclick="searchAccount()">GO</button>
+    </div>
+    <div class="account-status" id="ac-status"></div>
+    <div id="ac-favs-section">
+      <div class="account-section-label">⭐ Favoris</div>
+      <div class="account-list" id="ac-favs-list"></div>
+    </div>
+    <div id="ac-history-section">
+      <div class="account-section-label">🕐 Récents</div>
+      <div class="account-list" id="ac-history-list"></div>
+    </div>
+  </div>
+</div>
+
 <div class="session-banner" id="session-banner">
   <div>⚡</div>
   <div class="session-info">
@@ -1138,6 +1213,275 @@ async function doLoadOnline() {
     status.textContent = '❌ ' + e.message;
   }
 }
+
+// ── ACCOUNT SYSTEM ──
+let currentTag = localStorage.getItem('kayro-current-tag') || 'JLPQ8YYC';
+let accountHistory = JSON.parse(localStorage.getItem('kayro-history') || '[]');
+let accountFavs = JSON.parse(localStorage.getItem('kayro-favs') || '[]');
+let accountCache = JSON.parse(localStorage.getItem('kayro-account-cache') || '{}');
+
+function saveAccountData() {
+  localStorage.setItem('kayro-history', JSON.stringify(accountHistory));
+  localStorage.setItem('kayro-favs', JSON.stringify(accountFavs));
+  localStorage.setItem('kayro-account-cache', JSON.stringify(accountCache));
+  localStorage.setItem('kayro-current-tag', currentTag);
+}
+
+function toggleAccountDropdown() {
+  const dd = document.getElementById('ac-dropdown');
+  const chev = document.getElementById('ac-chevron');
+  const isOpen = dd.classList.contains('open');
+  dd.classList.toggle('open', !isOpen);
+  chev.classList.toggle('open', !isOpen);
+  if (!isOpen) renderAccountLists();
+}
+
+function closeAccountDropdown() {
+  document.getElementById('ac-dropdown').classList.remove('open');
+  document.getElementById('ac-chevron').classList.remove('open');
+}
+
+function cleanTag(raw) {
+  return raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+}
+
+function setAccountStatus(msg, type) {
+  const el = document.getElementById('ac-status');
+  el.textContent = msg;
+  el.className = 'account-status ' + (type || '');
+}
+
+async function searchAccount() {
+  const input = document.getElementById('ac-input');
+  const btn = document.getElementById('ac-search-btn');
+  const raw = input.value.trim();
+  if (!raw) { setAccountStatus('⚠️ Entre un tag !', 'err'); return; }
+  const tag = cleanTag(raw);
+  if (tag.length < 3) { setAccountStatus('⚠️ Tag trop court', 'err'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '⟳';
+  setAccountStatus('Recherche de #' + tag + '...', 'loading');
+
+  const data = await fetchByTag(tag);
+  btn.disabled = false;
+  btn.textContent = 'GO';
+
+  if (!data) {
+    setAccountStatus('❌ Joueur introuvable. Vérifie le tag.', 'err');
+    return;
+  }
+
+  setAccountStatus('✅ ' + data.name + ' trouvé !', 'ok');
+  input.value = '';
+  await switchToAccount(tag, data);
+  setTimeout(closeAccountDropdown, 800);
+}
+
+async function fetchByTag(tag) {
+  // Check cache (valid 5min)
+  const cached = accountCache[tag];
+  if (cached && (Date.now() - cached.ts) < 5 * 60 * 1000) return cached.data;
+
+  const urls = [
+    'https://api.brawlapi.com/v1/players/%23' + tag,
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.brawlapi.com/v1/players/%23' + tag),
+    'https://corsproxy.io/?' + encodeURIComponent('https://api.brawlapi.com/v1/players/%23' + tag),
+  ];
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      const raw = await res.json();
+      let data = null;
+      if (raw.contents) { try { data = JSON.parse(raw.contents); } catch(e) { continue; } }
+      else if (raw.trophies !== undefined) { data = raw; }
+      if (data?.trophies !== undefined) {
+        accountCache[tag] = { ts: Date.now(), data };
+        saveAccountData();
+        return data;
+      }
+    } catch(e) { continue; }
+  }
+  return null;
+}
+
+async function switchToAccount(tag, data) {
+  currentTag = tag;
+
+  // Add to history (max 10, no duplicates)
+  accountHistory = accountHistory.filter(h => h.tag !== tag);
+  accountHistory.unshift({ tag, name: data.name, trophies: data.trophies, ts: Date.now() });
+  if (accountHistory.length > 10) accountHistory = accountHistory.slice(0, 10);
+  saveAccountData();
+
+  // Update header
+  updateAccountHeader(tag, data);
+
+  // Update trophies
+  playerTrophies = data.trophies;
+  document.getElementById('trophy-display').textContent = data.trophies.toLocaleString('fr-FR');
+  updateGoalBar(data.trophies);
+
+  brawlerTrophiesMap = {};
+  (data.brawlers || []).forEach(b => {
+    brawlerTrophiesMap[b.name.toUpperCase()] = b.trophies;
+  });
+
+  setBanner('success', '✅ <strong>' + data.name + '</strong> — ' + data.trophies.toLocaleString('fr-FR') + ' 🏆 | #' + tag);
+  setTimeout(() => setBanner('hidden', ''), 3500);
+  render();
+  renderAccountLists();
+}
+
+function updateAccountHeader(tag, data) {
+  document.getElementById('ac-name').textContent = data.name;
+  document.getElementById('ac-tag').textContent = '#' + tag;
+  const pill = document.getElementById('ac-trophies');
+  pill.textContent = '🏆 ' + data.trophies.toLocaleString('fr-FR');
+  pill.style.display = '';
+  // Emoji avatar based on trophies
+  const emojis = ['🥉','🥈','🥇','💎','💠','🔮','👑'];
+  const idx = Math.min(Math.floor(data.trophies / 10000), emojis.length - 1);
+  document.getElementById('ac-avatar').textContent = emojis[idx];
+}
+
+function isFav(tag) {
+  return accountFavs.some(f => f.tag === tag);
+}
+
+function toggleFav(tag, event) {
+  event.stopPropagation();
+  const cached = accountCache[tag];
+  const data = cached?.data;
+  if (isFav(tag)) {
+    accountFavs = accountFavs.filter(f => f.tag !== tag);
+    showToast('⭐ Retiré des favoris', 'blue');
+  } else {
+    accountFavs.push({ tag, name: data?.name || tag, trophies: data?.trophies || 0, ts: Date.now() });
+    showToast('⭐ Ajouté aux favoris !', 'green');
+  }
+  saveAccountData();
+  renderAccountLists();
+}
+
+function deleteHistory(tag, event) {
+  event.stopPropagation();
+  accountHistory = accountHistory.filter(h => h.tag !== tag);
+  saveAccountData();
+  renderAccountLists();
+}
+
+async function loadAccount(tag) {
+  setAccountStatus('⟳ Chargement de #' + tag + '...', 'loading');
+  const data = await fetchByTag(tag);
+  if (!data) { setAccountStatus('❌ Impossible de charger #' + tag, 'err'); return; }
+  setAccountStatus('✅ ' + data.name + ' chargé !', 'ok');
+  await switchToAccount(tag, data);
+  setTimeout(closeAccountDropdown, 700);
+}
+
+function renderAccountLists() {
+  // Favs
+  const favEl = document.getElementById('ac-favs-list');
+  const favSection = document.getElementById('ac-favs-section');
+  if (accountFavs.length === 0) {
+    favSection.style.display = 'none';
+  } else {
+    favSection.style.display = '';
+    favEl.innerHTML = accountFavs.map(f => accountItemHTML(f, true)).join('');
+  }
+
+  // History
+  const histEl = document.getElementById('ac-history-list');
+  const histSection = document.getElementById('ac-history-section');
+  const histFiltered = accountHistory.filter(h => !isFav(h.tag));
+  if (histFiltered.length === 0) {
+    histSection.style.display = accountFavs.length ? 'none' : '';
+    histEl.innerHTML = '<div class="account-no-data">Aucun compte récent.<br>Cherche un tag BS ci-dessus !</div>';
+  } else {
+    histSection.style.display = '';
+    histEl.innerHTML = histFiltered.map(h => accountItemHTML(h, false)).join('');
+  }
+}
+
+function accountItemHTML(acc, isFavItem) {
+  const active = acc.tag === currentTag ? ' is-active' : '';
+  const favIcon = isFav(acc.tag) ? '⭐' : '☆';
+  const favActive = isFav(acc.tag) ? ' active' : '';
+  const cached = accountCache[acc.tag];
+  const trophies = cached?.data?.trophies ?? acc.trophies;
+  const name = cached?.data?.name ?? acc.name;
+  const timeAgo = acc.ts ? formatTimeAgo(acc.ts) : '';
+
+  return `<div class="account-item${active}" onclick="loadAccount('${acc.tag}')">
+    <div style="font-size:18px">${getTrophyEmoji(trophies)}</div>
+    <div class="account-item-info">
+      <div class="account-item-name">${name}${active ? ' ✓' : ''}</div>
+      <div class="account-item-tag">#${acc.tag} ${timeAgo ? '· ' + timeAgo : ''}</div>
+      <div class="account-item-trophy">🏆 ${trophies.toLocaleString('fr-FR')}</div>
+    </div>
+    <div class="account-item-actions">
+      <button class="fav-btn${favActive}" onclick="toggleFav('${acc.tag}', event)" title="${isFav(acc.tag) ? 'Retirer des favoris' : 'Ajouter aux favoris'}">${favIcon}</button>
+      ${!isFavItem ? `<button class="del-btn" onclick="deleteHistory('${acc.tag}', event)" title="Supprimer">✕</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function getTrophyEmoji(trophies) {
+  if (trophies >= 60000) return '👑';
+  if (trophies >= 40000) return '🔮';
+  if (trophies >= 25000) return '💠';
+  if (trophies >= 15000) return '💎';
+  if (trophies >= 8000)  return '🥇';
+  if (trophies >= 3000)  return '🥈';
+  return '🥉';
+}
+
+function formatTimeAgo(ts) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  const hrs = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1) return 'À l'instant';
+  if (mins < 60) return mins + 'min';
+  if (hrs < 24) return hrs + 'h';
+  return days + 'j';
+}
+
+// Override fetchPlayerData to use account system
+async function fetchPlayerData() {
+  setBanner('loading', '<span class="spin">⟳</span> Chargement des stats en direct...');
+  document.getElementById('trophy-display').textContent = '...';
+  // Invalidate cache for current tag to force refresh
+  if (accountCache[currentTag]) accountCache[currentTag].ts = 0;
+  const data = await fetchByTag(currentTag);
+  if (!data) {
+    setBanner('error', '❌ Stats indisponibles. <a href="https://brawlify.com/stats/player/' + currentTag + '" target="_blank" style="color:inherit;text-decoration:underline">Voir sur Brawlify</a>');
+    document.getElementById('trophy-display').textContent = '—';
+    return;
+  }
+  await switchToAccount(currentTag, data);
+  setBanner('success', '✅ <strong>' + data.name + '</strong> — ' + data.trophies.toLocaleString('fr-FR') + ' 🏆 | #' + currentTag);
+  setTimeout(() => setBanner('hidden', ''), 3500);
+}
+
+// Init account on load
+(async () => {
+  const cached = accountCache[currentTag];
+  if (cached?.data) {
+    updateAccountHeader(currentTag, cached.data);
+    playerTrophies = cached.data.trophies;
+    document.getElementById('trophy-display').textContent = cached.data.trophies.toLocaleString('fr-FR');
+    updateGoalBar(cached.data.trophies);
+    brawlerTrophiesMap = {};
+    (cached.data.brawlers || []).forEach(b => { brawlerTrophiesMap[b.name.toUpperCase()] = b.trophies; });
+    render();
+  }
+  renderAccountLists();
+})();
+
 </script>
 </body>
 </html>
